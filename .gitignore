@@ -5,3 +5,4 @@ __pycache__/
 *.tsv
 env/
 data/REDMANE_fastapi_public_data/
+.DS_Store
