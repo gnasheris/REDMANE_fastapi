@@ -1,11 +1,10 @@
 import os
+import httpx 
+from jose import JWTError, jwt
+from fastapi import APIRouter, Depends, HTTPException, Security
 import requests
 from functools import lru_cache
-from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
-
-router = APIRouter()
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
@@ -15,44 +14,33 @@ if not AUTH0_DOMAIN:
 if not AUTH0_AUDIENCE:
     raise RuntimeError("AUTH0_AUDIENCE environment variable is not set")
 
+token_auth_scheme = HTTPBearer()
+
 AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/"
 
 bearer_scheme = HTTPBearer()
 
+router = APIRouter()
 
-@lru_cache(maxsize=1)
 def get_jwks():
     url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
     response = requests.get(url)
-    response.raise_for_status()
     return response.json()
 
-
-def get_public_key(token: str):
-    jwks = get_jwks()
-    header = jwt.get_unverified_header(token)
-    key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
-    if key is None:
-        raise HTTPException(status_code=401, detail="Signing key not found")
-    return key
-
-
-async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)
-):
-    token = credentials.credentials
+def verify_token(token: HTTPAuthorizationCredentials = Security(token_auth_scheme)):
     try:
-        public_key = get_public_key(token)
+        jwks = get_jwks()
         payload = jwt.decode(
-            token,
-            public_key,
+            token.credentials,
+            jwks,
             algorithms=["RS256"],
             audience=AUTH0_AUDIENCE,
-            issuer=AUTH0_ISSUER
+            issuer=f"https://{AUTH0_DOMAIN}/"
         )
         return payload
-    except JWTError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
 
 
 @router.get("/auth/")

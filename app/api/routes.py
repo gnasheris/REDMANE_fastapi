@@ -2,6 +2,7 @@ import os
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse
+from app.routers.auth import verify_token
 
 import psycopg2
 from psycopg2 import Error
@@ -277,3 +278,4 @@ def update_metadata(update: MetadataUpdate, token: dict = Depends(verify_token))
         return update
     except Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    
