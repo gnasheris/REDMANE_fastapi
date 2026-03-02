@@ -9,13 +9,14 @@ router = APIRouter()
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
+AUTH0_ISSUER = os.getenv("AUTH0_ISSUER")
 
 if not AUTH0_DOMAIN:
     raise RuntimeError("AUTH0_DOMAIN environment variable is not set")
 if not AUTH0_AUDIENCE:
     raise RuntimeError("AUTH0_AUDIENCE environment variable is not set")
-
-AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/"
+if not AUTH0_ISSUER:
+    raise RuntimeError("AUTH0_ISSUER environment variable is not set")
 
 bearer_scheme = HTTPBearer()
 
