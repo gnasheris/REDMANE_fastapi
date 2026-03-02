@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 
+router = APIRouter()
+
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 AUTH0_ISSUER = os.getenv("AUTH0_ISSUER")
@@ -15,7 +17,7 @@ if not AUTH0_AUDIENCE:
     raise RuntimeError("AUTH0_AUDIENCE environment variable is not set")
 
 bearer_scheme = HTTPBearer()
-router = APIRouter()
+route = APIRouter()
 
 @lru_cache(maxsize=1)
 def get_jwks():
@@ -29,17 +31,8 @@ def get_jwks():
     response.raise_for_status()
     return response.json()
 
-def get_public_key(token: str):
-    jwks = get_jwks()
-    header = jwt.get_unverified_header(token)
-    print(f"Token kid: {header['kid']}", flush=True)
-    print(f"Available kids: {[k['kid'] for k in jwks['keys']]}", flush=True)
-    key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
-    if key is None:
-        raise HTTPException(status_code=401, detail="Signing key not found")
-    return key
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
+def get_public_key(token: str):
     token = credentials.credentials
     get_jwks.cache_clear()
     try:
