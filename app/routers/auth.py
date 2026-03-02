@@ -28,6 +28,7 @@ def get_jwks():
         url = "http://keycloak:8080/realms/redmane/protocol/openid-connect/certs"
     else:
         url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+    print(f"Fetching JWKS from: {url}", flush=True)
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
@@ -36,6 +37,8 @@ def get_jwks():
 def get_public_key(token: str):
     jwks = get_jwks()
     header = jwt.get_unverified_header(token)
+    print(f"Token kid: {header['kid']}", flush=True)
+    print(f"Available kids: {[k['kid'] for k in jwks['keys']]}", flush=True)
     key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
     if key is None:
         raise HTTPException(status_code=401, detail="Signing key not found")
@@ -49,6 +52,8 @@ async def verify_token(
     get_jwks.cache_clear()
     try:
         public_key = get_public_key(token)
+        print(f"Issuer: {AUTH0_ISSUER}", flush=True)
+        print(f"Audience: {AUTH0_AUDIENCE}", flush=True)
         payload = jwt.decode(
             token,
             public_key,
@@ -58,7 +63,11 @@ async def verify_token(
         )
         return payload
     except JWTError as e:
+        print(f"JWT Error: {e}", flush=True)
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except Exception as e:
+        print(f"Other Error: {e}", flush=True)
+        raise HTTPException(status_code=401, detail=f"Error: {str(e)}")
 
 
 @router.get("/auth/")
