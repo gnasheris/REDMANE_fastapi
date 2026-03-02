@@ -1,17 +1,27 @@
-from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, validator
 
-# Pydantic model for Project
+# =====================
+# Project Schema
+# =====================
 class Project(BaseModel):
     id: int
     name: str
     status: str
 
-# Pydantic model for Dataset
+
+# =====================
+# Dataset Schemas
+# =====================
 class Dataset(BaseModel):
-    id: int
-    project_id: int
+    id: Optional[int] = None  
+    project_id: Optional[int] = None  
     name: str
+    abstract: str
+    site: str  
+    created_at: Optional[datetime] = None 
+    rank_in_project: Optional[int] = None
 
 class DatasetMetadata(BaseModel):
     id: int
@@ -19,10 +29,20 @@ class DatasetMetadata(BaseModel):
     key: str
     value: str
 
+
 class DatasetWithMetadata(Dataset):
     metadata: List[DatasetMetadata] = []
 
-# Pydantic model for Patient
+
+class MetadataUpdate(BaseModel):
+    dataset_id: int
+    file_size: Optional[str] = None
+    last_size_update: Optional[str] = None
+
+
+# =====================
+# Patient Schemas
+# =====================
 class Patient(BaseModel):
     id: int
     project_id: int
@@ -30,29 +50,32 @@ class Patient(BaseModel):
     ext_patient_url: str
     public_patient_id: Optional[str]
 
-# Pydantic model for Patient with sample count
-class PatientWithSampleCount(Patient):
-    sample_count: int
 
-# Pydantic model for PatientMetadata
 class PatientMetadata(BaseModel):
     id: int
     patient_id: int
     key: str
     value: str
 
-# Pydantic model for Patient with Metadata
+
 class PatientWithMetadata(Patient):
     metadata: List[PatientMetadata] = []
 
-# Pydantic model for SampleMetadata
+
+class PatientWithSampleCount(Patient):
+    sample_count: int
+
+
+# =====================
+# Sample Schemas
+# =====================
 class SampleMetadata(BaseModel):
     id: int
     sample_id: int
     key: str
     value: str
 
-# Pydantic model for Sample
+
 class Sample(BaseModel):
     id: int
     patient_id: int
@@ -61,7 +84,7 @@ class Sample(BaseModel):
     metadata: List[SampleMetadata] = []
     patient: Patient
 
-# Pydantic model for SampleWithoutPatient
+
 class SampleWithoutPatient(BaseModel):
     id: int
     patient_id: int
@@ -69,29 +92,68 @@ class SampleWithoutPatient(BaseModel):
     ext_sample_url: str
     metadata: List[SampleMetadata] = []
 
-class RawFileResponse(BaseModel):
-    id: int
-    path: str
-    sample_id: Optional[str] = None
-    ext_sample_id: Optional[str] = None
-    sample_metadata: Optional[List[SampleMetadata]] = None
 
-# Pydantic model for Patient with Samples
 class PatientWithSamples(PatientWithMetadata):
     samples: List[SampleWithoutPatient] = []
 
-# Pydantic model for RawFileMetadata
-class RawFileMetadataCreate(BaseModel):
+
+# =====================
+# File Schemas
+# =====================
+class FileMetadataCreate(BaseModel):
     metadata_key: str
     metadata_value: str
 
-# Updated Pydantic model for RawFile with nested metadata
-class RawFileCreate(BaseModel):
+
+class FileCreate(BaseModel):
     dataset_id: int
     path: str
-    metadata: Optional[List[RawFileMetadataCreate]] = []
+    file_type: str  # 'raw', 'processed', or 'summarised'
+    metadata: Optional[List[FileMetadataCreate]] = []
 
-class MetadataUpdate(BaseModel):
+    @validator('file_type')
+    def validate_file_type(cls, v):
+        allowed = ['raw', 'processed', 'summarised']
+        if v not in allowed:
+            raise ValueError(f"file_type must be one of {allowed}, got '{v}'")
+        return v
+
+
+class FileResponse(BaseModel):
+    id: int
+    path: str
+    sample_id: Optional[int] = None
+    ext_sample_id: Optional[str] = None
+    sample_metadata: Optional[List[SampleMetadata]] = None
+
+class DatasetSummary(BaseModel):
     dataset_id: int
-    raw_file_size: str
-    last_size_update: str
+    dataset_name: str
+    file_count: int
+    patient_count: int
+    sample_count: int
+    # keep units consistent with your endpoint; here we return KB
+    total_size_kb: int
+
+
+class Totals(BaseModel):
+    file_count: int
+    patient_count: int
+    sample_count: int
+    total_size_kb: int
+
+
+class ProjectSummary(BaseModel):
+    project_id: int
+    project_name: Optional[str] = None
+    totals: Totals
+    datasets: List[DatasetSummary]
+
+class FileMetadataItem(BaseModel):
+    metadata_key: str
+    metadata_value: str
+
+class FileWithMetadata(BaseModel):
+    id: int
+    file_type: str
+    metadata: List[FileMetadataItem]
